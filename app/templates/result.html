@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <!--<h1>Result</h1>-->
+    <!--{% for result in claim_results %}-->
+        <!--<div><p>{{ result.similar_claim }} scores: <b>{{ result.similarity_score }}</b></p></div>-->
+    <!--{% endfor %}-->
+
+    <h2>Original Claim</h2>
+    <div><p>{{ original_claim }}</p></div>
+    <h2>Pre-processed Claim (split claim into words, lowercase them, remove stopwords, numbers, and punctuation, and stem each word)</h2>
+    <div><p>{{ pre_processed_claim }}</p></div>
+    <h2>Stemmed Claim</h2>
+    <div><p>{{ stemmed_claim }}</p></div>
+    <h2>Claim without any duplicated words</h2>
+    <div><p>{{ no_duplicates_claim }}</p></div>
+    <h2>Similar Claims</h2>
+    {% for similar_claim in similar_claims %}
+        <div><p>{{ similar_claim.similar_claim }} scores: <b>{{ similar_claim.similarity_score }}</b></p></div>
+    {% endfor %}
+
+{% endblock %}

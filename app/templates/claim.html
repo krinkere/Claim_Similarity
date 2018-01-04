@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Perform Claim Similarity Analysis</h1>
+    <form action="" method="post">
+        {{ form.hidden_tag() }}
+        <p>
+            <!--{{ form.claim.label }}<br>-->
+            Paste claim text below: <br>
+            {{ form.claim(rows='20',cols='100') }}<br>
+            {% for error in form.claim.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>{{ form.submit() }}</p>
+    </form>
+<div><p>Sample Claim: <i>A light diffuser comprising a transparent substrate and a plurality of lenses forming a complex lens structure on a first surface of the  substrate  wherein the plurality of lenses comprise a non-homogenous material.</i></p></div>
+
+{% endblock %}
