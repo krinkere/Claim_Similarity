@@ -58,7 +58,7 @@ def process_huge_claims(claim_txt):
     print('*********************extracted claim text*********************************')
     for claim in claims:
         claim_corpus.append(pre_process(claim))
-	documents.append(claim)
+        documents.append(claim)
 
     return claim_corpus, documents
 
