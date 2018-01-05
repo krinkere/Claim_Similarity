@@ -44,9 +44,9 @@ df_pati_clm_data = df_pati_data[df_pati_data['type'] == "CLM"]
 print('Claim Only Data')
 print(df_pati_clm_data.show())
 
-df_pati_clm_txt = df_pati_clm_data.drop('text')
+df_pati_clm_txt = df_pati_clm_data.drop('appId', 'exception', 'ifwNumber', 'mailRoomDate', 'type')
 print('Claim Text')
-print(df_pati_clm_txt)
+print(df_pati_clm_txt.show())
 
 
 def process_huge_claims(claim_txt):
