@@ -116,7 +116,7 @@ print('Took %.2f seconds to load the Google model.' % (time() - start))
 # Initialize WmdSimilarity.
 num_best = 10
 start = time()
-nce = WmdSimilarity(claim_txt_corpus, model, num_best=num_best)
+instance = WmdSimilarity(claim_txt_corpus, model, num_best=num_best)
 print('Took %.2f seconds to initialize WMD Similarity Instance.' % (time() - start))
 
 
