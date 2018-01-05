@@ -3,13 +3,11 @@ import os
 
 from app import app
 import findspark
-import pyspark
-from pyspark.sql import SparkSession, HiveContext
+from pyspark.sql import SparkSession
 
 from gensim.models.keyedvectors import KeyedVectors
 from gensim.similarities import WmdSimilarity
 
-import pandas as pd
 # Import and download stopwords from NLTK.
 from nltk.corpus import stopwords
 from nltk import download
@@ -30,8 +28,6 @@ FINDSPARK_INIT = app.config['FINDSPARK_INIT']
 PATI_DATA = app.config['PATI_DATA']
 
 findspark.init(FINDSPARK_INIT)
-# conf = pyspark.SparkConf().setAppName('claim_similarity')
-# sc = pyspark.SparkContext(conf=conf).getOrCreate()
 spark = SparkSession.builder.appName('claim_similarity').config("spark.driver.maxResultSize", "4g").enableHiveSupport().getOrCreate()
 df_pati_data = spark.read.parquet('hdfs://bdr-itwv-mongo-3.dev.uspto.gov:54310/tmp/PATI_data/data')
 df_pati_data = df_pati_data.sample(withReplacement=False, fraction=0.001, seed=123)
@@ -47,41 +43,6 @@ print(df_pati_clm_data.show())
 df_pati_clm_txt = df_pati_clm_data.drop('appId', 'exception', 'ifwNumber', 'mailRoomDate', 'type')
 print('Claim Text')
 print(df_pati_clm_txt.show())
-
-
-def process_huge_claims(claim_txt):
-    claim_corpus = []
-    # corpus, with no pre-processing to retrieve the original documents.
-    documents = []
-    # convert claim text rdd into list of claims
-    claims = claim_txt.toPandas().values
-    print('*********************extracted claim text*********************************')
-    for claim in claims:
-        claim_corpus.append(pre_process(claim))
-        documents.append(claim)
-
-    return claim_corpus, documents
-
-""" Load PATI specific data in terms of claims and compare them """
-print('Attempting to load PATI sub data...')
-start = time()
-# df = pd.read_csv("data/pati_data.csv")
-# claim_txts = df['CLAIM_TXTS']
-# claim_txt_corpus, original_corpus = process_claims(claim_txts)
-claim_txt_corpus, original_corpus = process_huge_claims(df_pati_clm_txt)
-print('Took %.2f seconds to load PATI data.' % (time() - start))
-
-#tableList = [x["text"] for x in df_pati_clm_data.rdd.collect()]
-#print(tableList)
-
-# spark.stop()
-
-print('Attempting to load Google model...')
-start = time()
-if not os.path.exists('data/GoogleNews-vectors-negative300.bin.gz'):
-    raise ValueError("SKIP: You need to download the google news model: https://code.google.com/archive/p/word2vec/")
-model = KeyedVectors.load_word2vec_format('data/GoogleNews-vectors-negative300.bin.gz', binary=True)
-print('Took %.2f seconds to load the Google model.' % (time() - start))
 
 
 def pre_process(sentence):
@@ -111,6 +72,34 @@ def remove_duplicates(words):
     return words
 
 
+def process_claims(claim_txt):
+    claim_corpus = []
+    # corpus, with no pre-processing to retrieve the original documents.
+    documents = []
+    # convert claim text rdd into list of claims
+    claims = claim_txt.toPandas().values
+    print('*********************extracted claim text*********************************')
+    print(claims)
+    print('*********************extracted claim text*********************************')
+    for claim in claims:
+        claim_corpus.append(pre_process(claim))
+        documents.append(claim)
+
+    return claim_corpus, documents
+
+""" Load PATI specific data in terms of claims and compare them """
+print('Attempting to load PATI data...')
+start = time()
+claim_txt_corpus, original_corpus = process_claims(df_pati_clm_txt)
+print('Took %.2f seconds to load PATI data.' % (time() - start))
+
+print('Attempting to load Google model...')
+start = time()
+if not os.path.exists('data/GoogleNews-vectors-negative300.bin.gz'):
+    raise ValueError("SKIP: You need to download the google news model: https://code.google.com/archive/p/word2vec/")
+model = KeyedVectors.load_word2vec_format('data/GoogleNews-vectors-negative300.bin.gz', binary=True)
+print('Took %.2f seconds to load the Google model.' % (time() - start))
+
 # def process_claims(claim_txt):
 #     claim_corpus = []
 #     # corpus, with no pre-processing to retrieve the original documents.
@@ -124,11 +113,10 @@ def remove_duplicates(words):
 #
 #     return claim_corpus, documents
 
-
 # Initialize WmdSimilarity.
 num_best = 10
 start = time()
-instance = WmdSimilarity(claim_txt_corpus, model, num_best=num_best)
+nce = WmdSimilarity(claim_txt_corpus, model, num_best=num_best)
 print('Took %.2f seconds to initialize WMD Similarity Instance.' % (time() - start))
 
 
