@@ -1,6 +1,11 @@
 from time import time
 import os
 
+from app import app
+import findspark
+import pyspark
+from pyspark.sql import SparkSession, HiveContext
+
 from gensim.models.keyedvectors import KeyedVectors
 from gensim.similarities import WmdSimilarity
 
@@ -20,6 +25,41 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s')
 download('stopwords')
 #   Download data for tokenizer.
 download('punkt')
+
+FINDSPARK_INIT = app.config['FINDSPARK_INIT']
+PATI_DATA = app.config['PATI_DATA']
+
+findspark.init(FINDSPARK_INIT)
+# conf = pyspark.SparkConf().setAppName('claim_similarity')
+# sc = pyspark.SparkContext(conf=conf).getOrCreate()
+spark = SparkSession.builder.appName('claim_similarity').enableHiveSupport().getOrCreate()
+df_pati_data = spark.read.parquet('hdfs://bdr-itwv-mongo-3.dev.uspto.gov:54310/tmp/PATI_data/data')
+df_pati_data = df_pati_data.sample(withReplacement=False, fraction=0.05, seed=123)
+
+# print('# of rows: ', df_pati_data.count())
+# print(df_pati_data.show())
+
+print("*****")
+df_pati_clm_data = df_pati_data[df_pati_data['type'] == "CLM"]
+print(df_pati_clm_data.show())
+
+tableList = [x["text"] for x in df_pati_clm_data.rdd.collect()]
+
+
+
+# import zipfile
+# zf = zipfile.ZipFile('data/patent_claims_fulltext.csv.zip')
+# df_scott_clm = spark.read\
+#     .format("com.databricks.spark.csv")\
+#     .option("header", "true")\
+#     .option("inferSchema", "true")\
+#     .load('data/patent_claims_fulltext.csv.zip')
+# # spark.read.option("header", "true").csv("myfile.csv")
+# print('# of rows: ', df_scott_clm.count())
+# print(df_scott_clm.head())
+
+# spark.stop()
+
 
 # print('Attempting to load Google model...')
 # start = time()
@@ -78,21 +118,20 @@ def process_claims(claim_txt):
 # claim_txt_corpus, original_corpus = process_claims(claim_txts)
 # print('Took %.2f seconds to load PATI data.' % (time() - start))
 
-print('Attempting to load Patent Claims Research Dataset...')
-start = time()
-import zipfile
-zf = zipfile.ZipFile('data/patent_claims_fulltext.csv.zip')
-test_df = pd.read_csv(zf.open('patent_claims_fulltext.csv'), encoding="ISO-8859-1", low_memory=False, header=None, chunksize=1000)
-test_df2 = pd.concat(test_df, ignore_index=True)
-print('Took %.2f seconds to load Patent Claims Research Dataset.' % (time() - start))
-print(test_df2.head())
+# print('Attempting to load Patent Claims Research Dataset...')
+# start = time()
+# import zipfile
+# zf = zipfile.ZipFile('data/patent_claims_fulltext.csv.zip')
+# test_df = pd.read_csv(zf.open('patent_claims_fulltext.csv'), encoding="ISO-8859-1", low_memory=False, header=None, chunksize=1000)
+# test_df2 = pd.concat(test_df, ignore_index=True)
+# print('Took %.2f seconds to load Patent Claims Research Dataset.' % (time() - start))
+# print(test_df2.head())
 
 # # Initialize WmdSimilarity.
 # num_best = 10
 # start = time()
 # instance = WmdSimilarity(claim_txt_corpus, model, num_best=num_best)
 # print('Took %.2f seconds to initialize WMD Similarity Instance.' % (time() - start))
-
 
 
 def find_similar_claims(claim):

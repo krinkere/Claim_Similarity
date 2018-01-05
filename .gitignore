@@ -2,3 +2,5 @@
 __pycache__/
 GoogleNews-vectors-negative300.bin.gz
 patent_claims_fulltext.csv.zip
+derby.log
+metastore_db

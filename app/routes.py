@@ -12,6 +12,7 @@ def index():
     session['pre_processed_claim'] = ""
     session['stemmed_claim'] = ""
     session['no_duplicates_claim'] = ""
+
     return render_template('index.html', title='Welcome to USPTO Claim Similarity Finder')
 
 
