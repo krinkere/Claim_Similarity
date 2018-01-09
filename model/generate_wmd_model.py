@@ -35,7 +35,7 @@ PATI_DATA = 'hdfs://bdr-itwv-mongo-3.dev.uspto.gov:54310/tmp/PATI_data/data'
 findspark.init(FINDSPARK_INIT)
 spark = SparkSession.builder.\
     appName('claim_similarity').\
-    config("spark.driver.maxResultSize", "24g").\
+    config("spark.driver.maxResultSize", "64g").\
     enableHiveSupport().\
     getOrCreate()
 
@@ -46,7 +46,7 @@ spark.sql("set spark.sql.parquet.enableVectorizedReader=false")
 df_pati_data = spark.read.parquet(PATI_DATA)
 
 # If testing, you can limit the amount of data to process
-df_pati_data = df_pati_data.sample(withReplacement=False, fraction=0.0001, seed=123)
+# df_pati_data = df_pati_data.sample(withReplacement=False, fraction=0.0001, seed=123)
 
 print('Data size: ', df_pati_data.count())
 
@@ -100,23 +100,25 @@ def custom_function(row):
 
 
 def process_claims2(claim_txt):
-    sample2 = claim_txt.rdd.map(custom_function)
     claim_corpus = []
     # corpus, with no pre-processing to retrieve the original documents.
     documents = []
 
-    print('Step 5: Collect PATI data')
+    # print('Step 5: Collect PATI data')
     # claims_df = spark.createDataFrame(claim_txt.toPandas()).collect()
     claims_df = claim_txt.rdd.flatMap(lambda x: [x.text]).collect()
     # print("Print first 2 results of collected data")
     # print(claims_df[0:2])
 
-    print('Step 6: Iterate through collected data to extract claim 1 and then apply stemming and pre processing')
+    # print('Step 6: Iterate through collected data to extract claim 1 and then apply stemming and pre processing')
     counter = 0
     for claim in claims_df:
         counter = counter + 1
-        # print(">>>>> Claim text '%s'" % claim.text)
-        all_claims = claim.text.splitlines()
+        # print(">>>>> Claim text '%s'" % claim)
+        all_claims = claim.splitlines()
+        if len(all_claims) == 0:
+            print(">>>>> Claim text '%s'" % claim)
+            continue
         claim_1 = all_claims[0]
         for single_claim in all_claims:
             # print(">>>>> >>>>> Analyzing '%s'" % single_claim)
