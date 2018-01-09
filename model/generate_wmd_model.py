@@ -2,8 +2,6 @@ from time import time
 import logging
 import os
 
-from app import app
-
 import findspark
 from pyspark.sql import SparkSession
 
@@ -28,8 +26,8 @@ download('stopwords')
 #   Download data for tokenizer.
 download('punkt')
 
-FINDSPARK_INIT = app.config['FINDSPARK_INIT']
-PATI_DATA = app.config['PATI_DATA']
+FINDSPARK_INIT = '/usr/hdp/current/spark2-client/'
+PATI_DATA = 'hdfs://bdr-itwv-mongo-3.dev.uspto.gov:54310/tmp/PATI_data/data'
 
 findspark.init(FINDSPARK_INIT)
 spark = SparkSession.builder.\
@@ -37,6 +35,8 @@ spark = SparkSession.builder.\
     config("spark.driver.maxResultSize", "24g").\
     enableHiveSupport().\
     getOrCreate()
+
+spark.sparkContext.setLogLevel("ERROR")
 
 spark.sql("set spark.sql.parquet.enableVectorizedReader=false")
 
@@ -144,24 +144,4 @@ instance = WmdSimilarity(claim_txt_corpus, model, num_best=num_best)
 print('Took %.2f seconds to build WMD Similarity Instance.' % (time() - start))
 
 # print('Step 9: Save the WMD Similarity model')
-instance.save('model/wmd_instance.model')
-
-
-def find_similar_claims(claim):
-    # A query is simply a "look-up" in the similarity class.
-    print('Finding similar claims')
-    start = time()
-    sims = instance[claim]
-    print('Took %.2f seconds to find similar claims.' % (time() - start))
-    print(sims)
-
-    similar_claims = []
-    for i in range(num_best):
-        score = sims[i][1]
-        claim_txt = original_corpus[sims[i][0]]
-        # print('sim = %.4f' % score)
-        # print("claim_txt '%s'" % claim_txt)
-
-        similar_claims.append({'similarity_score': str(score), 'similar_claim': claim_txt})
-
-    return similar_claims
+instance.save('wmd_instance.model')
