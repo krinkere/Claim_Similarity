@@ -5,3 +5,4 @@ patent_claims_fulltext.csv.zip
 derby.log
 metastore_db
 venv/
+model/wmd_instance.model*

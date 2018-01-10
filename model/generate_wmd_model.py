@@ -14,11 +14,10 @@ from nltk import download
 from nltk import word_tokenize
 from nltk.stem.lancaster import LancasterStemmer
 
+import pickle
+
 # Initialize logging.
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s')
-
-# Initialize Stemmer
-stemmer = LancasterStemmer()
 
 # Download NLTK corpus:
 #   Download stopwords list.
@@ -27,9 +26,9 @@ download('stopwords')
 download('punkt')
 
 # mongo3
-# FINDSPARK_INIT = '/usr/hdp/current/spark2-client/'
+FINDSPARK_INIT = '/usr/hdp/current/spark2-client/'
 # model1
-FINDSPARK_INIT = '/data/krinker/spark/spark-2.2.1-bin-hadoop2.7/'
+# FINDSPARK_INIT = '/data/krinker/spark/spark-2.2.1-bin-hadoop2.7/'
 PATI_DATA = 'hdfs://bdr-itwv-mongo-3.dev.uspto.gov:54310/tmp/PATI_data/data'
 
 findspark.init(FINDSPARK_INIT)
@@ -63,79 +62,19 @@ df_pati_clm_txt = df_pati_clm_data.drop('appId', 'exception', 'ifwNumber', 'mail
 # print(df_pati_clm_txt.show())
 
 
-def pre_process(sentence):
-    # Lowercase the text.
-    sentence = sentence.lower()
-    # Split into words.
-    sentence = word_tokenize(sentence)
-    # Remove stopwords.
-    stop_words = stopwords.words('english')
-    sentence = [w for w in sentence if w not in stop_words]
-    # Remove numbers and punctuation
-    sentence = [w for w in sentence if w.isalnum()]
+def extract_claim1(text):
+    all_claims = text.splitlines()
+    if len(all_claims) == 0:
+        return "No claims were found"
 
-    return sentence
+    claim_1 = all_claims[0]
+    for single_claim in all_claims:
+        single_claim = single_claim.lstrip()
+        if single_claim.startswith("1."):
+            claim_1 = single_claim
+            break
 
-
-def perform_stemming(sentence):
-    # stem each word
-    words = [stemmer.stem(w) for w in sentence]
-
-    return words
-
-
-def remove_duplicates(words):
-    # remove duplicates
-    words = sorted(list(set(words)))
-
-    return words
-
-
-def custom_function(row):
-    print(row)
-    return (row.name, row.age, row.city)
-
-# sample2 = claim_txt.rdd.map(custom_function)
-# sample2 = sample.rdd.map(lambda x: (x.name, x.age, x.city))
-
-
-def process_claims2(claim_txt):
-    claim_corpus = []
-    # corpus, with no pre-processing to retrieve the original documents.
-    documents = []
-
-    # print('Step 5: Collect PATI data')
-    # claims_df = spark.createDataFrame(claim_txt.toPandas()).collect()
-    claims_df = claim_txt.rdd.flatMap(lambda x: [x.text]).collect()
-    # print("Print first 2 results of collected data")
-    # print(claims_df[0:2])
-
-    # print('Step 6: Iterate through collected data to extract claim 1 and then apply stemming and pre processing')
-    counter = 0
-    for claim in claims_df:
-        counter = counter + 1
-        # print(">>>>> Claim text '%s'" % claim)
-        all_claims = claim.splitlines()
-        if len(all_claims) == 0:
-            print(">>>>> Claim text '%s'" % claim)
-            continue
-        claim_1 = all_claims[0]
-        for single_claim in all_claims:
-            # print(">>>>> >>>>> Analyzing '%s'" % single_claim)
-            single_claim = single_claim.lstrip()
-            if single_claim.startswith("1."):
-                claim_1 = single_claim
-                # print(">>>>> >>>>> >>>>> Extracted claim 1 text '%s'" % claim_1)
-                # print("##### ##### ##### found possible match, exit the loop")
-                break
-
-        # print("$$$$$ $$$$$ add found match to the corpus '%s'" % claim_1)
-        claim_corpus.append(perform_stemming(pre_process(claim_1)))
-        documents.append(claim_1)
-
-    print("Total processed documents: %r " % counter)
-
-    return claim_corpus, documents
+    return claim_1
 
 
 def process_claims(claim_txt):
@@ -143,31 +82,71 @@ def process_claims(claim_txt):
     # corpus, with no pre-processing to retrieve the original documents.
     documents = []
 
-    # print('Step 5: Collect PATI data')
-    claims_df = spark.createDataFrame(claim_txt.toPandas()).collect()
-    # print("Print first 2 results of collected data")
-    # print(claims_df[0:2])
+    # print("show old")
+    # claim_txt.show(5)
 
-    # print('Step 6: Iterate through collected data to extract claim 1 and then apply stemming and pre processing')
+    # print('Step 5: Iterate through claims to extract claim 1 and then apply stemming and pre processing')
+    from pyspark.sql.functions import udf, col
+    from pyspark.sql.types import StringType
+
+    # Extract claim 1
+    extract_claim1_udf = udf(extract_claim1, StringType())
+    claim_txt = claim_txt.withColumn('claim1', extract_claim1_udf('text'))
+
+    # Pre-process claim 1 - lowecase, tokenize and remove punctuations and stop words
+    stopwords_list = stopwords.words('english')
+
+    def remove_stopwords(label, feature_list):
+        # Lowercase the text.
+        sentence = label.lower()
+        # Split into words.
+        sentence = word_tokenize(sentence)
+        # Remove stopwords.
+        sentence = [w for w in sentence if w not in feature_list]
+        # Remove numbers and punctuation
+        sentence = [w for w in sentence if w.isalnum()]
+
+        return sentence
+
+    def pre_process_udf(stopwords_list):
+        return udf(lambda l: remove_stopwords(l, stopwords_list))
+
+    claim_txt = claim_txt.withColumn('claim1_processed', pre_process_udf(stopwords_list)(col("claim1")))
+
+    # print("show pre processed")
+    # claim_txt.show(5)
+
+    # Stem re-processed claim 1
+    # Initialize Stemmer
+    stemmer = LancasterStemmer()
+
+    def perform_stemming(sentence, stemmer):
+        # stem each word
+        words = [stemmer.stem(w) for w in sentence]
+
+        return words
+
+    def stemmer_udf(stemmer):
+        return udf(lambda l: perform_stemming(l, stemmer))
+
+    claim_txt = claim_txt.withColumn('claim1_processed_stemmed', stemmer_udf(stemmer)(col("claim1_processed")))
+
+    # print("show stemmed")
+    # claim_txt.show(5)
+
+    # print('Step 6: Collect PATI data')
+    start = time()
+    claims_df = claim_txt.rdd.flatMap(lambda x: [(x.claim1, x.claim1_processed_stemmed)]).collect()
+    print('Took %.2f seconds to collect PATI Data.' % (time() - start))
+
+    start = time()
     counter = 0
     for claim in claims_df:
         counter = counter + 1
-        # print(">>>>> Claim text '%s'" % claim.text)
-        all_claims = claim.text.splitlines()
-        claim_1 = all_claims[0]
-        for single_claim in all_claims:
-            # print(">>>>> >>>>> Analyzing '%s'" % single_claim)
-            single_claim = single_claim.lstrip()
-            if single_claim.startswith("1."):
-                claim_1 = single_claim
-                # print(">>>>> >>>>> >>>>> Extracted claim 1 text '%s'" % claim_1)
-                # print("##### ##### ##### found possible match, exit the loop")
-                break
+        claim_corpus.append(claim[1])
+        documents.append(claim[0])
 
-        # print("$$$$$ $$$$$ add found match to the corpus '%s'" % claim_1)
-        claim_corpus.append(perform_stemming(pre_process(claim_1)))
-        documents.append(claim_1)
-
+    print('Took %.2f seconds to iterate through collected PATI Data.' % (time() - start))
     print("Total processed documents: %r " % counter)
 
     return claim_corpus, documents
@@ -176,14 +155,14 @@ def process_claims(claim_txt):
 # print('Step 4: Process claim text (lowercase, stop words, stemming, etc)')
 start = time()
 print('Processing PATI Data...')
-claim_txt_corpus, original_corpus = process_claims2(df_pati_clm_txt)
+claim_txt_corpus, original_corpus = process_claims(df_pati_clm_txt)
 print('Took %.2f seconds to load PATI Data.' % (time() - start))
 
 # print('Step 7: Load google vector model to get W2V similarity between words')
 print('Loading Google model...')
 start = time()
 if not os.path.exists('../data/GoogleNews-vectors-negative300.bin.gz'):
-    raise ValueError("SKIP: You need to download the google news model: https://code.google.com/archive/p/word2vec/")
+    raise ValueError("You need to download the google news model: https://code.google.com/archive/p/word2vec/")
 model = KeyedVectors.load_word2vec_format('../data/GoogleNews-vectors-negative300.bin.gz', binary=True)
 print('Took %.2f seconds to load the Google model.' % (time() - start))
 
@@ -193,5 +172,8 @@ start = time()
 instance = WmdSimilarity(claim_txt_corpus, model, num_best=num_best)
 print('Took %.2f seconds to build WMD Similarity Instance.' % (time() - start))
 
-# print('Step 9: Save the WMD Similarity model')
+# print('Step 9: Save the WMD Similarity model and claim list')
 instance.save('wmd_instance.model')
+
+with open('original_corpus.pkl', 'wb') as f:
+    pickle.dump(original_corpus, f)
