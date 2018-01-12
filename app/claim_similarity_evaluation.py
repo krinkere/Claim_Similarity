@@ -53,14 +53,14 @@ def remove_duplicates(words):
     return words
 
 
-if not os.path.exists('model/wmd_instance.model'):
-    raise ValueError("You need to download trained wmd_instance.model")
+if not os.path.exists('model/wmd_instance_mk.model'):
+    raise ValueError("You need to download trained wmd_instance_mk.model")
 
 start = time()
-instance = WmdSimilarity.load('model/wmd_instance.model')
-print('Took %.2f seconds to load trained model/wmd_instance.model.' % (time() - start))
+instance = WmdSimilarity.load('model/wmd_instance_mk.model')
+print('Took %.2f seconds to load trained model/wmd_instance_mk.model.' % (time() - start))
 
-with open('model/original_corpus.pkl', 'rb') as f:
+with open('model/original_corpus_mk.pkl', 'rb') as f:
     original_corpus = pickle.load(f)
 
 
@@ -82,3 +82,5 @@ def find_similar_claims(claim):
         similar_claims.append({'similarity_score': str(score), 'similar_claim': claim_txt})
 
     return similar_claims
+
+

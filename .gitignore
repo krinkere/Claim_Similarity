@@ -7,3 +7,6 @@ metastore_db
 venv/
 model/wmd_instance.model*
 *.pkl
+*.pyc
+*.model
+*.npy
