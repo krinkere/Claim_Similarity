@@ -26,9 +26,9 @@ download('stopwords')
 download('punkt')
 
 # mongo3
-FINDSPARK_INIT = '/usr/hdp/current/spark2-client/'
+#FINDSPARK_INIT = '/usr/hdp/current/spark2-client/'
 # model1
-# FINDSPARK_INIT = '/data/krinker/spark/spark-2.2.1-bin-hadoop2.7/'
+FINDSPARK_INIT = '/data/krinker/spark/spark-2.2.1-bin-hadoop2.7/'
 PATI_DATA = 'hdfs://bdr-itwv-mongo-3.dev.uspto.gov:54310/tmp/PATI_data/data'
 
 findspark.init(FINDSPARK_INIT)

@@ -6,3 +6,4 @@ derby.log
 metastore_db
 venv/
 model/wmd_instance.model*
+*.pkl
